@@ -1,0 +1,10 @@
+# Credenciales y configuración local
+.env
+firmware/include/config.h
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+# PlatformIO
+.pio/
+.vscode/

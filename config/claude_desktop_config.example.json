@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "smart-object": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:/RUTA/ABSOLUTA/A/mcp-server",
+        "run",
+        "smart-object.py"
+      ],
+      "env": {
+        "TOPIC_PREFIX": "sis234/grupoN"
+      }
+    }
+  }
+}

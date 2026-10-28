@@ -1,0 +1,10 @@
+[project]
+name = "smart-object"
+version = "0.1.0"
+description = "Servidor MCP que conecta una herramienta de IA con un objeto inteligente (ESP32) vía MQTT"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=2.0.0",
+    "paho-mqtt>=2.1.0",
+]
