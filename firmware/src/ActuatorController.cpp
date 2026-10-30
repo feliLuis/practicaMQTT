@@ -3,66 +3,76 @@
 void ActuatorController::begin() {
   for (uint8_t i = 0; i < kLedCount; i++) {
     pinMode(leds_[i].pin, OUTPUT);
-    setLed(leds_[i].name, false);
+    digitalWrite(leds_[i].pin, LED_ACTIVE_LOW ? HIGH : LOW);
+    leds_[i].on = false;
   }
-#if ENABLE_SERVO
-  servo_.attach(PIN_SERVO);
-#endif
+}
+
+int ActuatorController::indexOf(const String &lowerCaseColor) const {
+  for (uint8_t i = 0; i < kLedCount; i++) {
+    if (lowerCaseColor == leds_[i].name) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 bool ActuatorController::setLed(const String &color, bool on) {
   String name = color;
   name.toLowerCase();
-  for (uint8_t i = 0; i < kLedCount; i++) {
-    if (name == leds_[i].name) {
-      bool level = LED_ACTIVE_LOW ? !on : on;
-      digitalWrite(leds_[i].pin, level ? HIGH : LOW);
-      Serial.printf("[ACT] LED %s -> %s\n", leds_[i].name, on ? "ON" : "OFF");
-      return true;
-    }
-  }
-  Serial.printf("[ACT] Color desconocido: %s\n", color.c_str());
-  return false;
-}
-
-bool ActuatorController::setServo(int angle) {
-#if ENABLE_SERVO
-  if (angle < 0 || angle > 180) {
-    Serial.printf("[ACT] Angulo fuera de rango: %d\n", angle);
+  int i = indexOf(name);
+  if (i < 0) {
+    Serial.printf("[ACT] Color desconocido: %s\n", color.c_str());
     return false;
   }
-  servo_.write(angle);
-  Serial.printf("[ACT] Servo -> %d grados\n", angle);
+  bool level = LED_ACTIVE_LOW ? !on : on;
+  digitalWrite(leds_[i].pin, level ? HIGH : LOW);
+  leds_[i].on = on;
+  Serial.printf("[ACT] LED %s -> %s\n", leds_[i].name, on ? "ON" : "OFF");
   return true;
-#else
-  (void)angle;
-  Serial.println("[ACT] Servo deshabilitado (ENABLE_SERVO 0)");
-  return false;
-#endif
 }
 
-bool ActuatorController::applyCommand(const char *payload, unsigned int length) {
+bool ActuatorController::parseCommand(const char *payload, unsigned int length, String &color,
+                                      bool &on) const {
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload, length);
   if (err) {
     Serial.printf("[ACT] JSON invalido: %s\n", err.c_str());
     return false;
   }
-
-  if (doc["led"].is<const char *>() && doc["estado"].is<const char *>()) {
-    String state = doc["estado"].as<String>();
-    state.toLowerCase();
-    if (state != "on" && state != "off") {
-      Serial.printf("[ACT] Estado invalido: %s\n", state.c_str());
-      return false;
-    }
-    return setLed(doc["led"].as<String>(), state == "on");
+  const char *led = doc["led"].as<const char *>();
+  const char *estado = doc["estado"].as<const char *>();
+  if (led == nullptr || estado == nullptr) {
+    Serial.println("[ACT] Comando incompleto: se requieren 'led' y 'estado'");
+    return false;
   }
-
-  if (doc["servo"].is<int>()) {
-    return setServo(doc["servo"].as<int>());
+  String state = estado;
+  state.toLowerCase();
+  if (state != "on" && state != "off") {
+    Serial.printf("[ACT] Estado invalido: %s\n", estado);
+    return false;
   }
+  String name = led;
+  name.toLowerCase();
+  if (indexOf(name) < 0) {
+    Serial.printf("[ACT] Color desconocido: %s\n", led);
+    return false;
+  }
+  color = name;
+  on = (state == "on");
+  return true;
+}
 
-  Serial.println("[ACT] Comando no reconocido");
-  return false;
+bool ActuatorController::applyCommand(const char *payload, unsigned int length, String &color,
+                                      bool &on) {
+  if (!parseCommand(payload, length, color, on)) {
+    return false;  // comando inválido: ningún GPIO fue modificado
+  }
+  return setLed(color, on);
+}
+
+void ActuatorController::fillState(JsonObject leds) const {
+  for (uint8_t i = 0; i < kLedCount; i++) {
+    leds[leds_[i].name] = leds_[i].on ? "on" : "off";
+  }
 }
