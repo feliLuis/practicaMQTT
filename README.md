@@ -1,51 +1,66 @@
-# Práctica MQTT — Objeto inteligente con MQTT y MCP (SIS-234)
+# SIS-234 — Objeto inteligente con AWS IoT Core, Device Shadow y MCP
+
+ESP32 + sensor ultrasónico HC-SR04 + 3 LEDs, conectado a **AWS IoT Core** por MQTT/TLS con certificado de cliente, controlable desde una app móvil y desde **Claude Desktop** mediante un servidor **MCP**.
+
+```mermaid
+flowchart LR
+    ESP["ESP32<br/>HC-SR04 + 3 LEDs"] -- "distancia" --> AWS[("AWS IoT Core<br/>MQTT TLS :8883")]
+    AWS -- "comandos / Shadow delta" --> ESP
+    AWS -- "distancia" --> APP["App móvil<br/>(app-sis234)"]
+    APP -- "comandos" --> AWS
+    AWS -- "distancia / update accepted" --> MCP["Servidor MCP<br/>(mcp-sis234)"]
+    MCP -- "comandos" --> AWS
+    MCP <-- "MCP stdio" --> CD["Claude Desktop"]
+```
 
 ## Integrantes
-- _Nombre 1_ — usuario GitHub: `...`
-- _Nombre 2_ — usuario GitHub: `...`
-- _Nombre 3 (si aplica)_ — usuario GitHub: `...`
+- _Nombre 1_ — GitHub: `...`
+- _Nombre 2_ — GitHub: `...`
 
-## Descripción
-ESP32 con sensor ultrasónico HC-SR04 y 3 LEDs (rojo, verde, amarillo). Todo se comunica a través de un broker MQTT en la nube (HiveMQ):
-
+## Estructura
 ```
-ESP32 <--> broker.hivemq.com <--> App móvil (IoT MQTT Panel)
-                  ^
-                  +-------------> Servidor MCP <--> Claude Desktop
+firmware/     ESP32 (PlatformIO, C++ orientado a objetos)
+mcp-server/   Servidor MCP (Python) + pruebas
+config/       Claude Desktop + políticas AWS de referencia
+docs/         Guías: AWS, circuito, tópicos, Shadow, app móvil, pruebas, implementación
 ```
 
-## Tópicos MQTT y mensajes
-Prefijo del grupo: `sis234/grupoN` _(reemplazar)_
+## Qué leer primero
+1. `docs/GUIA_IMPLEMENTACION.md` — orden de trabajo paso a paso
+2. `docs/AWS_CONFIGURACION.md` — qué verificar y crear en AWS (no se crea nada automáticamente)
 
-| Tópico | Publica | Se suscribe | Mensaje |
-|---|---|---|---|
-| `sis234/grupoN/distancia` | ESP32 | App, servidor MCP | `{"cm": 42.7}` |
-| `sis234/grupoN/actuadores/cmd` | App, servidor MCP | ESP32 | `{"led":"rojo","estado":"on"}` |
+## Archivos que debes configurar con tus datos (no se suben a Git)
+| Archivo | Contenido |
+|---|---|
+| `firmware/include/config.h` | WiFi, pines (copiar de `config.example.h`) |
+| `firmware/include/aws_certificates.h` | CA + certificado + clave **de la ESP32** (copiar de `aws_certificates.example.h`) |
+| `mcp-server/.env` | Endpoint y rutas (copiar de `.env.example`) |
+| `mcp-server/certs/*` | CA + certificado + clave **del servidor MCP** (identidad distinta de la ESP32) |
+| `claude_desktop_config.json` | Ruta absoluta del servidor |
 
-## Herramientas MCP
-| Herramienta | Parámetros | Propósito |
+## Tópicos
+| Tópico | Publica | Mensaje |
 |---|---|---|
-| `get_distance` | — | Última distancia (cm) y su antigüedad |
-| `set_led` | `color`, `state` | Enciende/apaga un LED |
-| `only_led` | `color` | Enciende solo ese LED y apaga los demás |
-| `all_leds_on` / `all_leds_off` | — | Todos los LEDs |
-| `move_servo` | `angle` | Solo con `SERVO_ENABLED=true` |
-| `get_system_status` | — | Estado del broker y del sensor |
+| `sis234/esp32/distancia` | ESP32 | `{"cm":42.7}` |
+| `sis234/esp32/comandos` | App, servidor MCP | `{"led":"rojo","estado":"on"}` |
+| `$aws/things/esp32-sis234/shadow/...` | ESP32, AWS | Device Shadow clásico |
 
-## Requerimientos no funcionales (valores medidos)
-| Atributo | Valor declarado | Cómo se verificó |
-|---|---|---|
-| Rango de trabajo | _… cm a … cm_ | |
-| Estabilidad | _… minutos sin reinicios_ | |
-| Exactitud | _error máx. ± … cm_ | Cinta métrica |
-| Tiempo de respuesta | _≤ … s_ | App → broker → ESP32 |
-| Frecuencia de publicación | _… lecturas/s_ | |
-| Reconexión | Automática (Wi-Fi y MQTT) | Se apagó y encendió el hotspot |
+Detalle en `docs/MQTT_TOPICOS.md` y `docs/DEVICE_SHADOW.md`.
 
-## Cómo ejecutar
-1. **Firmware:** en `firmware/`, copiar `include/config.example.h` a `include/config.h`, completar Wi-Fi y `TOPIC_PREFIX`, y ejecutar `pio run --target upload`.
-2. **Servidor MCP:** en `mcp-server/`, `uv sync`, copiar `.env.example` a `.env` (poner `TOPIC_PREFIX`).
-3. **Claude Desktop:** agregar `config/claude_desktop_config.example.json` a `claude_desktop_config.json` (ruta absoluta) y reiniciar.
-4. **App móvil:** importar/crear el panel descrito en `config/`.
+## Requerimientos no funcionales (completar tras medir)
+| Atributo | Valor medido |
+|---|---|
+| Rango de trabajo | _… cm a … cm_ |
+| Estabilidad | _… min sin reinicios_ |
+| Exactitud | _error máx. ± … cm_ |
+| Tiempo de respuesta | _… s_ |
+| Frecuencia de publicación | 2,5 lecturas/s configuradas; _medido: …_ |
+| Reconexión | automática (WiFi y MQTT) |
 
-Más detalle en `docs/GUIA_IMPLEMENTACION.md`.
+## Estado de validación
+- ✅ Servidor MCP: 25 pruebas automáticas con cliente MQTT simulado.
+- ⬜ Firmware: **no compilado** ni probado en hardware.
+- ⬜ Integración con AWS real, app móvil y Claude Desktop: pendiente (ver `docs/PRUEBAS.md`).
+
+## Seguridad
+Ninguna clave, certificado ni contraseña está en este repositorio. El `.gitignore` excluye `*.pem`, `*.key`, `*.crt`, `*.p12`, `config.h`, `aws_certificates.h` y `.env`. Cada cliente (ESP32, servidor MCP, app) usa su **propio** certificado con una política de mínimos privilegios.

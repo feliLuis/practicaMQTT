@@ -2,3 +2,7 @@
 __pycache__/
 *.egg-info/
 .env
+# Certificados y claves de la identidad del servidor: NUNCA subir
+certs/*
+!certs/README.md
+!certs/.gitkeep

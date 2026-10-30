@@ -1,7 +1,7 @@
 [project]
 name = "smart-object"
-version = "0.1.0"
-description = "Servidor MCP que conecta una herramienta de IA con un objeto inteligente (ESP32) vía MQTT"
+version = "0.2.0"
+description = "Servidor MCP que conecta Claude Desktop con un ESP32 vía AWS IoT Core (MQTT/TLS + Device Shadow)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

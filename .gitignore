@@ -1,10 +1,20 @@
-# Credenciales y configuración local
+# ===== Credenciales y configuración privada: NUNCA subir =====
 .env
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 firmware/include/config.h
-# Python
+firmware/include/aws_certificates.h
+mcp-server/certs/*
+!mcp-server/certs/README.md
+!mcp-server/certs/.gitkeep
+config/claude_desktop_config.json
+# ===== Python =====
 .venv/
 __pycache__/
 *.egg-info/
-# PlatformIO
+# ===== PlatformIO =====
 .pio/
 .vscode/
