@@ -1,3 +1,5 @@
 .pio/
 .vscode/
+# Credenciales: NUNCA subir
 include/config.h
+include/aws_certificates.h

@@ -1,46 +1,51 @@
 /**
  * @file ActuatorController.h
- * @brief Control de los actuadores (3 LEDs y, opcionalmente, un servomotor).
+ * @brief Control de los tres LEDs (rojo, verde, amarillo) con validación de comandos.
  *
- * Comandos JSON aceptados:
- *   {"led":"rojo","estado":"on"}   (colores: rojo, verde, amarillo; estado: on/off)
- *   {"servo":90}                   (0..180, requiere ENABLE_SERVO 1)
+ * Comando JSON aceptado:  {"led":"rojo","estado":"on"}
+ *   led    : rojo | verde | amarillo
+ *   estado : on | off
+ * Ningún GPIO se modifica hasta que el comando completo ha sido validado.
  */
 #pragma once
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
 #include "config.h"
-#if ENABLE_SERVO
-#include <ESP32Servo.h>
-#endif
 
 class ActuatorController {
  public:
   /** Configura los pines y apaga todo. Llamar una vez en setup(). */
   void begin();
 
-  /** Enciende/apaga el LED de un color. @return false si el color no existe. */
+  /** Enciende/apaga un LED por nombre. @return false si el color no existe. */
   bool setLed(const String &color, bool on);
 
-  /** Mueve el servo a un ángulo 0..180. @return false si no aplica o es inválido. */
-  bool setServo(int angle);
-
   /**
-   * Interpreta un comando JSON recibido por MQTT y lo ejecuta.
-   * @return true si el comando fue válido y se aplicó.
+   * Valida un comando JSON SIN ejecutarlo.
+   * @param[out] color  Color normalizado (minúsculas).
+   * @param[out] on     Estado pedido.
+   * @return true si el comando es válido.
    */
-  bool applyCommand(const char *payload, unsigned int length);
+  bool parseCommand(const char *payload, unsigned int length, String &color, bool &on) const;
+
+  /** Valida y ejecuta un comando. @return true si se aplicó. */
+  bool applyCommand(const char *payload, unsigned int length, String &color, bool &on);
+
+  /** Escribe el estado actual en un objeto JSON: {"rojo":"on", ...}. */
+  void fillState(JsonObject leds) const;
 
  private:
   enum { kLedCount = 3 };
   struct Led {
     const char *name;
     uint8_t pin;
+    bool on;
   };
-  Led leds_[kLedCount] = {
-      {"rojo", PIN_LED_RED}, {"verde", PIN_LED_GREEN}, {"amarillo", PIN_LED_YELLOW}};
-#if ENABLE_SERVO
-  Servo servo_;
-#endif
+
+  int indexOf(const String &lowerCaseColor) const;
+
+  Led leds_[kLedCount] = {{"rojo", PIN_LED_RED, false},
+                          {"verde", PIN_LED_GREEN, false},
+                          {"amarillo", PIN_LED_YELLOW, false}};
 };

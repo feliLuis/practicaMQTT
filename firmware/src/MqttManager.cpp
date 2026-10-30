@@ -1,27 +1,44 @@
 #include "MqttManager.h"
 
-#include <WiFi.h>
-
-MqttManager::MqttManager(Client &net, const char *server, uint16_t port, const char *user,
-                         const char *password, const char *clientPrefix, unsigned long retryMs)
-    : client_(net),
-      server_(server),
+MqttManager::MqttManager(const char *endpoint, uint16_t port, const char *clientId,
+                         uint16_t keepAliveS, uint16_t bufferSize, unsigned long retryMs)
+    : client_(net_),
+      endpoint_(endpoint),
       port_(port),
-      user_(user),
-      password_(password),
-      clientPrefix_(clientPrefix),
+      clientId_(clientId),
+      keepAliveS_(keepAliveS),
+      bufferSize_(bufferSize),
       retryMs_(retryMs) {}
 
-void MqttManager::begin(const char *commandTopic, CommandHandler handler) {
-  commandTopic_ = commandTopic;
-  handler_ = handler;
-  client_.setServer(server_, port_);
-  client_.setKeepAlive(15);
-  client_.setSocketTimeout(3);
-  client_.setCallback([this](char *topic, byte *payload, unsigned int length) {
-    Serial.printf("[MQTT] Mensaje en %s (%u bytes)\n", topic, length);
-    if (handler_) {
-      handler_(reinterpret_cast<const char *>(payload), length);
+void MqttManager::setCertificates(const char *caCert, const char *clientCert,
+                                  const char *privateKey) {
+  net_.setCACert(caCert);
+  net_.setCertificate(clientCert);
+  net_.setPrivateKey(privateKey);
+}
+
+void MqttManager::addSubscription(const String &topic, uint8_t qos) {
+  if (subCount_ >= kMaxSubscriptions) {
+    Serial.println("[MQTT] Demasiadas suscripciones registradas");
+    return;
+  }
+  subs_[subCount_].topic = topic;
+  subs_[subCount_].qos = qos;
+  subCount_++;
+}
+
+void MqttManager::begin(MessageHandler onMessage, ConnectHandler onConnect) {
+  onMessage_ = onMessage;
+  onConnect_ = onConnect;
+  client_.setServer(endpoint_, port_);
+  client_.setKeepAlive(keepAliveS_);
+  client_.setSocketTimeout(10);
+  if (!client_.setBufferSize(bufferSize_)) {
+    Serial.println("[MQTT] No se pudo reservar el buffer MQTT");
+  }
+  client_.setCallback([this](char *topic, uint8_t *payload, unsigned int length) {
+    if (onMessage_) {
+      onMessage_(topic, payload, length);
     }
   });
 }
@@ -33,20 +50,23 @@ bool MqttManager::connect() {
   }
   lastAttempt_ = now;
 
-  if (clientId_.length() == 0) {
-    clientId_ = String(clientPrefix_) + WiFi.macAddress();
-    clientId_.replace(":", "");
-  }
-
-  Serial.printf("[MQTT] Conectando a %s:%u...\n", server_, port_);
-  bool ok = (user_[0] != '\0') ? client_.connect(clientId_.c_str(), user_, password_)
-                               : client_.connect(clientId_.c_str());
-  if (!ok) {
-    Serial.printf("[MQTT] Fallo, estado=%d\n", client_.state());
+  Serial.printf("[MQTT] Conectando a %s:%u como '%s'...\n", endpoint_, port_, clientId_);
+  if (!client_.connect(clientId_)) {
+    char tlsError[100] = {0};
+    net_.lastError(tlsError, sizeof(tlsError));
+    // estado PubSubClient: -2 sin red/TLS, 4 credenciales, 5 no autorizado (política)
+    Serial.printf("[MQTT] Fallo: estado=%d, TLS='%s'\n", client_.state(), tlsError);
     return false;
   }
-  client_.subscribe(commandTopic_, 1);  // se repite en cada reconexión
-  Serial.printf("[MQTT] Conectado. Suscrito a %s\n", commandTopic_);
+
+  Serial.println("[MQTT] Conectado a AWS IoT Core");
+  for (uint8_t i = 0; i < subCount_; i++) {
+    bool ok = client_.subscribe(subs_[i].topic.c_str(), subs_[i].qos);
+    Serial.printf("[MQTT] Suscripcion %s: %s\n", subs_[i].topic.c_str(), ok ? "ok" : "FALLO");
+  }
+  if (onConnect_) {
+    onConnect_();
+  }
   return true;
 }
 
