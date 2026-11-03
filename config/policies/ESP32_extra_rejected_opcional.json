@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/$aws/things/esp32-sis234/shadow/update/rejected",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/$aws/things/esp32-sis234/shadow/get/rejected"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/update/rejected",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/get/rejected"
+      ]
+    }
+  ]
+}

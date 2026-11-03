@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:client/esp32-sis234"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/sis234/esp32/distancia",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/update",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/get"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/sis234/esp32/comandos",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/$aws/things/esp32-sis234/shadow/update/delta",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/$aws/things/esp32-sis234/shadow/update/accepted",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topicfilter/$aws/things/esp32-sis234/shadow/get/accepted"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": [
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/sis234/esp32/comandos",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/update/delta",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/update/accepted",
+        "arn:aws:iot:us-east-2:<ACCOUNT_ID>:topic/$aws/things/esp32-sis234/shadow/get/accepted"
+      ]
+    }
+  ]
+}
